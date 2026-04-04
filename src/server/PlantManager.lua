@@ -226,9 +226,17 @@ function PlantManager.updateGrowth(dt: number)
 				if plant.stage ~= "ready" then
 					local seed = GameConfig.getSeedById(plant.seedId)
 					if seed then
-						-- Calculate growth speed with upgrades
+						-- Calculate growth speed with upgrades + game pass
 						local planterLevel = data.upgrades.planter or 0
 						local speedBonus = 1 + GameConfig.getUpgradeEffect("planter", planterLevel)
+
+						-- Premium Planter game pass multiplier
+						local ServerSS = game:GetService("ServerScriptService")
+						local ServerFolder = ServerSS:FindFirstChild("Server")
+						if ServerFolder then
+							local MonetizationMgr = require(ServerFolder:WaitForChild("MonetizationManager"))
+							speedBonus = speedBonus * MonetizationMgr.getGrowthMultiplier(player)
+						end
 
 						-- Tutorial override: first plant grows fast
 						local growTime = seed.growTime

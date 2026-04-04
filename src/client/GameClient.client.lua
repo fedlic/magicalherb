@@ -231,6 +231,83 @@ RemoteHelper.onEvent("TutorialComplete", function()
 	EffectsManager.playSound("rankup")
 end)
 
+-- Monetization: full state sync
+RemoteHelper.onEvent("MonetizationData", function(data)
+	UIController.updateRobuxShop(data)
+end)
+
+-- Monetization: game pass granted
+RemoteHelper.onEvent("GamePassGranted", function(data)
+	EffectsManager.playSound("rankup")
+	UIController.showNotification(data.name .. " activated!", "success")
+	UIController.updateRobuxShop(nil)
+end)
+
+-- Monetization: product purchased
+RemoteHelper.onEvent("ProductPurchased", function(data)
+	EffectsManager.playUpgradeEffect(Vector3.new(0, 3, 0))
+end)
+
+-- Monetization: booster activated/expired
+RemoteHelper.onEvent("BoosterActivated", function(data)
+	if data.multiplier > 1 then
+		UIController.showNotification("2x Booster ON!", "success")
+		EffectsManager.playSound("rankup")
+	end
+	UIController.updateRobuxShop(nil)
+end)
+
+-- Monetization: premium status changed
+RemoteHelper.onEvent("PremiumStatusChanged", function(data)
+	if data.isPremium then
+		UIController.showNotification("Premium bonus: +20% earnings!", "success")
+	end
+	UIController.updateRobuxShop(nil)
+end)
+
+-- Monetization: ad reward
+RemoteHelper.onEvent("AdRewardGranted", function(data)
+	EffectsManager.playSaleEffect(Vector3.new(0, 3, 0), data.amount)
+end)
+
+-- Monetization: show ad to client
+RemoteHelper.onEvent("ShowAdToClient", function(data)
+	-- Use AdService to show a rewarded video ad
+	local success, err = pcall(function()
+		local AdService = game:GetService("AdService")
+		AdService:ShowVideoAd()
+	end)
+
+	if success then
+		-- Ad shown; listen for completion
+		local adConn
+		local function onAdComplete(adDone)
+			if adConn then adConn:Disconnect() end
+			if adDone then
+				-- Tell server we watched the ad
+				RemoteHelper.fireServer("AdRewardGranted")
+			else
+				UIController.showNotification("Ad not completed.", "warning")
+			end
+		end
+
+		pcall(function()
+			local AdService = game:GetService("AdService")
+			adConn = AdService.VideoAdClosed:Connect(function()
+				onAdComplete(true)
+			end)
+			-- Timeout fallback: disconnect after 2 minutes
+			task.delay(120, function()
+				if adConn then adConn:Disconnect() end
+			end)
+		end)
+	else
+		-- AdService not available or ad failed to show
+		UIController.showNotification("Ads not available right now.", "warning")
+		warn("[Monetization] AdService error: " .. tostring(err))
+	end
+end)
+
 -- Generic notifications
 RemoteHelper.onEvent("NotifyClient", function(data)
 	UIController.showNotification(data.text, data.type)

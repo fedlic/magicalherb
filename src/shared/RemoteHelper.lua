@@ -54,6 +54,18 @@ local REMOTE_EVENTS = {
 	"TutorialComplete",
 	"NotifyClient",
 	"PlayerDataLoaded",
+	-- Monetization (client -> server)
+	"PromptGamePass",
+	"PromptProduct",
+	"RequestAdWatch",
+	-- Monetization (server -> client)
+	"GamePassGranted",
+	"ProductPurchased",
+	"BoosterActivated",
+	"PremiumStatusChanged",
+	"AdRewardGranted",
+	"MonetizationData",
+	"ShowAdToClient",
 }
 
 -- Remote functions (client -> server, returns data)

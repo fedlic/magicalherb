@@ -364,7 +364,7 @@ local function createHUD(parent)
 	-- Bottom bar (quick action buttons)
 	local bottomBar = createFrame({
 		Name = "BottomBar",
-		Size = UDim2.new(0, 480, 0, 56),
+		Size = UDim2.new(0, 554, 0, 56),
 		Position = UDim2.new(0.5, 0, 1, -8),
 		AnchorPoint = Vector2.new(0.5, 1),
 		BackgroundColor3 = COLORS.bg_dark,
@@ -386,6 +386,7 @@ local function createHUD(parent)
 		{ name = "Staff",     icon = "👥", color = COLORS.accent_purple },
 		{ name = "Brand",     icon = "🏷",  color = COLORS.accent_green },
 		{ name = "Events",    icon = "🎉", color = COLORS.accent_orange },
+		{ name = "RobuxShop", icon = "💎", color = COLORS.coin_gold },
 	}
 
 	for i, btnInfo in ipairs(quickButtons) do
@@ -1606,6 +1607,479 @@ local function createPlanterUI(planterPart)
 end
 
 ------------------------------------------------------------------------
+-- Panel: Robux Shop (Game Passes, Products, Ads)
+------------------------------------------------------------------------
+
+local robuxShopElements = {}
+local monetizationState = {
+	ownedGamePasses = {},
+	isPremium = false,
+	boosterActive = false,
+	boosterRemaining = 0,
+	adCooldownRemaining = 0,
+	earningsMultiplier = 1.0,
+}
+
+local function createRobuxShopPanel(parent)
+	local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+
+	local panel = createFrame({
+		Name = "RobuxShopPanel",
+		Size = UDim2.new(0, 400, 0.85, 0),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = COLORS.bg_dark,
+		Visible = false,
+		Parent = parent,
+		ZIndex = 20,
+	})
+	createCorner(panel, CORNER_RADIUS_LARGE)
+	createStroke(panel, COLORS.coin_gold, 2)
+	createGradient(panel, COLORS.bg_dark, COLORS.bg_medium, 90)
+
+	-- Title bar
+	local titleBar = createFrame({
+		Name = "TitleBar",
+		Size = UDim2.new(1, 0, 0, 44),
+		BackgroundColor3 = COLORS.bg_light,
+		Parent = panel,
+		ZIndex = 21,
+	})
+	createCorner(titleBar, CORNER_RADIUS_LARGE)
+
+	createText({
+		Name = "Title",
+		Size = UDim2.new(1, -50, 1, 0),
+		Position = UDim2.new(0, 14, 0, 0),
+		Text = "Robux Shop",
+		TextColor3 = COLORS.coin_gold,
+		Font = FONTS.title,
+		TextSize = 20,
+		Parent = titleBar,
+		ZIndex = 22,
+	})
+
+	local closeBtn = createButton({
+		Name = "CloseBtn",
+		Size = UDim2.new(0, 32, 0, 32),
+		Position = UDim2.new(1, -38, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundColor3 = COLORS.error,
+		Text = "X",
+		TextColor3 = COLORS.text_white,
+		TextSize = 16,
+		Parent = titleBar,
+		ZIndex = 22,
+	})
+	closeBtn.MouseButton1Click:Connect(function()
+		UIController.hidePanel("RobuxShop")
+	end)
+
+	-- Multiplier display
+	local multiplierBar = createFrame({
+		Name = "MultiplierBar",
+		Size = UDim2.new(1, -20, 0, 30),
+		Position = UDim2.new(0, 10, 0, 50),
+		BackgroundColor3 = COLORS.bg_medium,
+		Parent = panel,
+		ZIndex = 21,
+	})
+	createCorner(multiplierBar, CORNER_RADIUS_SMALL)
+	createStroke(multiplierBar, COLORS.accent_green, 1)
+
+	local multiplierLabel = createText({
+		Name = "MultiplierLabel",
+		Size = UDim2.new(1, -10, 1, 0),
+		Position = UDim2.new(0, 8, 0, 0),
+		Text = "Earnings: x1.0",
+		TextColor3 = COLORS.accent_green,
+		Font = FONTS.bold,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Parent = multiplierBar,
+		ZIndex = 22,
+	})
+	robuxShopElements.multiplierLabel = multiplierLabel
+
+	-- Scrollable content
+	local scroll = createScrollFrame({
+		Name = "ShopScroll",
+		Size = UDim2.new(1, -20, 1, -92),
+		Position = UDim2.new(0, 10, 0, 86),
+		Parent = panel,
+		ZIndex = 21,
+	})
+	local contentLayout = createListLayout(scroll, Enum.FillDirection.Vertical, 8, Enum.HorizontalAlignment.Center)
+	createPadding(scroll, 4, 0, 4, 0)
+
+	-- Section: Premium Status
+	local premiumSection = createFrame({
+		Name = "PremiumSection",
+		Size = UDim2.new(1, 0, 0, 60),
+		BackgroundColor3 = COLORS.bg_medium,
+		Parent = scroll,
+		ZIndex = 22,
+		LayoutOrder = 0,
+	})
+	createCorner(premiumSection, CORNER_RADIUS)
+	createStroke(premiumSection, COLORS.accent_purple, 1)
+
+	createText({
+		Name = "PremiumTitle",
+		Size = UDim2.new(1, -16, 0, 22),
+		Position = UDim2.new(0, 10, 0, 4),
+		Text = "Roblox Premium",
+		TextColor3 = COLORS.accent_purple,
+		Font = FONTS.bold,
+		TextSize = 14,
+		Parent = premiumSection,
+		ZIndex = 23,
+	})
+
+	local premiumStatusLabel = createText({
+		Name = "PremiumStatus",
+		Size = UDim2.new(1, -16, 0, 24),
+		Position = UDim2.new(0, 10, 0, 28),
+		Text = "Not subscribed - Subscribe for +20% earnings!",
+		TextColor3 = COLORS.text_gray,
+		Font = FONTS.regular,
+		TextSize = 12,
+		TextWrapped = true,
+		Parent = premiumSection,
+		ZIndex = 23,
+	})
+	robuxShopElements.premiumStatusLabel = premiumStatusLabel
+
+	-- Section header: Game Passes
+	local gpHeader = createText({
+		Name = "GPHeader",
+		Size = UDim2.new(1, 0, 0, 28),
+		Text = "--- Game Passes ---",
+		TextColor3 = COLORS.coin_gold,
+		Font = FONTS.bold,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Parent = scroll,
+		ZIndex = 22,
+		LayoutOrder = 1,
+	})
+
+	-- Game Pass cards
+	local gpOrder = 2
+	for key, passInfo in pairs(GameConfig.GamePasses) do
+		local card = createFrame({
+			Name = "GP_" .. key,
+			Size = UDim2.new(1, 0, 0, 70),
+			BackgroundColor3 = COLORS.bg_medium,
+			Parent = scroll,
+			ZIndex = 22,
+			LayoutOrder = gpOrder,
+		})
+		createCorner(card, CORNER_RADIUS)
+		createStroke(card, COLORS.accent_green, 1)
+		gpOrder = gpOrder + 1
+
+		createText({
+			Name = "Name",
+			Size = UDim2.new(0.6, -10, 0, 22),
+			Position = UDim2.new(0, 10, 0, 6),
+			Text = passInfo.name,
+			TextColor3 = COLORS.text_white,
+			Font = FONTS.bold,
+			TextSize = 14,
+			Parent = card,
+			ZIndex = 23,
+		})
+
+		createText({
+			Name = "Desc",
+			Size = UDim2.new(0.6, -10, 0, 20),
+			Position = UDim2.new(0, 10, 0, 28),
+			Text = passInfo.description,
+			TextColor3 = COLORS.text_gray,
+			Font = FONTS.regular,
+			TextSize = 11,
+			TextWrapped = true,
+			Parent = card,
+			ZIndex = 23,
+		})
+
+		local statusLabel = createText({
+			Name = "Status",
+			Size = UDim2.new(0.6, -10, 0, 18),
+			Position = UDim2.new(0, 10, 0, 48),
+			Text = "",
+			TextColor3 = COLORS.accent_green,
+			Font = FONTS.medium,
+			TextSize = 11,
+			Parent = card,
+			ZIndex = 23,
+		})
+		robuxShopElements["gpStatus_" .. key] = statusLabel
+
+		local buyBtn = createButton({
+			Name = "BuyBtn",
+			Size = UDim2.new(0, 100, 0, 36),
+			Position = UDim2.new(1, -110, 0.5, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
+			BackgroundColor3 = COLORS.accent_green,
+			Text = "Buy (R$)",
+			TextColor3 = COLORS.bg_dark,
+			TextSize = 13,
+			Parent = card,
+			ZIndex = 23,
+		})
+		robuxShopElements["gpBuyBtn_" .. key] = buyBtn
+
+		local passKey = key
+		buyBtn.MouseButton1Click:Connect(function()
+			if not inputEnabled then return end
+			local RemoteHelper = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteHelper"))
+			RemoteHelper.fireServer("PromptGamePass", passKey)
+		end)
+	end
+
+	-- Section header: Coin Packs
+	local dpHeader = createText({
+		Name = "DPHeader",
+		Size = UDim2.new(1, 0, 0, 28),
+		Text = "--- Coin Packs ---",
+		TextColor3 = COLORS.coin_gold,
+		Font = FONTS.bold,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Parent = scroll,
+		ZIndex = 22,
+		LayoutOrder = 10,
+	})
+
+	-- Dev product cards
+	local dpOrder = 11
+	local productKeys = { "coinPack_small", "coinPack_medium", "coinPack_large", "seedPack", "booster_2x" }
+	for _, key in ipairs(productKeys) do
+		local productInfo = GameConfig.DevProducts[key]
+		if productInfo then
+			-- Switch section header for non-coin items
+			if key == "seedPack" then
+				createText({
+					Name = "SeedHeader",
+					Size = UDim2.new(1, 0, 0, 28),
+					Text = "--- Special Items ---",
+					TextColor3 = COLORS.coin_gold,
+					Font = FONTS.bold,
+					TextSize = 14,
+					TextXAlignment = Enum.TextXAlignment.Center,
+					Parent = scroll,
+					ZIndex = 22,
+					LayoutOrder = dpOrder,
+				})
+				dpOrder = dpOrder + 1
+			end
+
+			local card = createFrame({
+				Name = "DP_" .. key,
+				Size = UDim2.new(1, 0, 0, 60),
+				BackgroundColor3 = COLORS.bg_medium,
+				Parent = scroll,
+				ZIndex = 22,
+				LayoutOrder = dpOrder,
+			})
+			createCorner(card, CORNER_RADIUS)
+			createStroke(card, COLORS.accent_orange, 1)
+			dpOrder = dpOrder + 1
+
+			createText({
+				Name = "Name",
+				Size = UDim2.new(0.6, -10, 0, 22),
+				Position = UDim2.new(0, 10, 0, 6),
+				Text = productInfo.name,
+				TextColor3 = COLORS.text_white,
+				Font = FONTS.bold,
+				TextSize = 14,
+				Parent = card,
+				ZIndex = 23,
+			})
+
+			createText({
+				Name = "Desc",
+				Size = UDim2.new(0.6, -10, 0, 20),
+				Position = UDim2.new(0, 10, 0, 30),
+				Text = productInfo.description,
+				TextColor3 = COLORS.text_gray,
+				Font = FONTS.regular,
+				TextSize = 11,
+				TextWrapped = true,
+				Parent = card,
+				ZIndex = 23,
+			})
+
+			local buyBtn = createButton({
+				Name = "BuyBtn",
+				Size = UDim2.new(0, 100, 0, 36),
+				Position = UDim2.new(1, -110, 0.5, 0),
+				AnchorPoint = Vector2.new(0, 0.5),
+				BackgroundColor3 = COLORS.accent_orange,
+				Text = "Buy (R$)",
+				TextColor3 = COLORS.bg_dark,
+				TextSize = 13,
+				Parent = card,
+				ZIndex = 23,
+			})
+
+			local productKey = key
+			buyBtn.MouseButton1Click:Connect(function()
+				if not inputEnabled then return end
+				local RemoteHelper = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteHelper"))
+				RemoteHelper.fireServer("PromptProduct", productKey)
+			end)
+		end
+	end
+
+	-- Section header: Watch Ad
+	createText({
+		Name = "AdHeader",
+		Size = UDim2.new(1, 0, 0, 28),
+		Text = "--- Free Rewards ---",
+		TextColor3 = COLORS.coin_gold,
+		Font = FONTS.bold,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Parent = scroll,
+		ZIndex = 22,
+		LayoutOrder = 30,
+	})
+
+	local adCard = createFrame({
+		Name = "AdCard",
+		Size = UDim2.new(1, 0, 0, 70),
+		BackgroundColor3 = COLORS.bg_medium,
+		Parent = scroll,
+		ZIndex = 22,
+		LayoutOrder = 31,
+	})
+	createCorner(adCard, CORNER_RADIUS)
+	createStroke(adCard, COLORS.accent_purple, 1)
+
+	createText({
+		Name = "AdTitle",
+		Size = UDim2.new(0.6, -10, 0, 22),
+		Position = UDim2.new(0, 10, 0, 6),
+		Text = "Watch Ad",
+		TextColor3 = COLORS.text_white,
+		Font = FONTS.bold,
+		TextSize = 14,
+		Parent = adCard,
+		ZIndex = 23,
+	})
+
+	createText({
+		Name = "AdDesc",
+		Size = UDim2.new(0.6, -10, 0, 20),
+		Position = UDim2.new(0, 10, 0, 28),
+		Text = "Watch a short video for +" .. GameConfig.Ads.rewardPerWatch .. " coins!",
+		TextColor3 = COLORS.text_gray,
+		Font = FONTS.regular,
+		TextSize = 11,
+		TextWrapped = true,
+		Parent = adCard,
+		ZIndex = 23,
+	})
+
+	local adCooldownLabel = createText({
+		Name = "AdCooldown",
+		Size = UDim2.new(0.6, -10, 0, 18),
+		Position = UDim2.new(0, 10, 0, 48),
+		Text = "",
+		TextColor3 = COLORS.text_dim,
+		Font = FONTS.regular,
+		TextSize = 10,
+		Parent = adCard,
+		ZIndex = 23,
+	})
+	robuxShopElements.adCooldownLabel = adCooldownLabel
+
+	local watchAdBtn = createButton({
+		Name = "WatchAdBtn",
+		Size = UDim2.new(0, 100, 0, 36),
+		Position = UDim2.new(1, -110, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundColor3 = COLORS.accent_purple,
+		Text = "Watch",
+		TextColor3 = COLORS.text_white,
+		TextSize = 13,
+		Parent = adCard,
+		ZIndex = 23,
+	})
+	robuxShopElements.watchAdBtn = watchAdBtn
+
+	watchAdBtn.MouseButton1Click:Connect(function()
+		if not inputEnabled then return end
+		local RemoteHelper = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteHelper"))
+		RemoteHelper.fireServer("RequestAdWatch")
+	end)
+
+	panels.RobuxShop = panel
+end
+
+-- Update the Robux Shop panel with current monetization state
+function UIController.updateRobuxShop(data)
+	if data then
+		monetizationState = data
+	end
+
+	-- Update multiplier display
+	if robuxShopElements.multiplierLabel then
+		local txt = "Earnings: x" .. string.format("%.1f", monetizationState.earningsMultiplier)
+		if monetizationState.boosterActive then
+			local mins = math.ceil(monetizationState.boosterRemaining / 60)
+			txt = txt .. " (Booster: " .. mins .. "m left)"
+		end
+		robuxShopElements.multiplierLabel.Text = txt
+	end
+
+	-- Update premium status
+	if robuxShopElements.premiumStatusLabel then
+		if monetizationState.isPremium then
+			robuxShopElements.premiumStatusLabel.Text = "Active! +20% earnings bonus applied."
+			robuxShopElements.premiumStatusLabel.TextColor3 = COLORS.accent_green
+		else
+			robuxShopElements.premiumStatusLabel.Text = "Not subscribed - Subscribe for +20% earnings!"
+			robuxShopElements.premiumStatusLabel.TextColor3 = COLORS.text_gray
+		end
+	end
+
+	-- Update game pass statuses
+	local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+	for key, _ in pairs(GameConfig.GamePasses) do
+		local statusLabel = robuxShopElements["gpStatus_" .. key]
+		local buyBtn = robuxShopElements["gpBuyBtn_" .. key]
+		if statusLabel and buyBtn then
+			if monetizationState.ownedGamePasses and monetizationState.ownedGamePasses[key] then
+				statusLabel.Text = "OWNED"
+				statusLabel.TextColor3 = COLORS.accent_green
+				buyBtn.Text = "Owned"
+				buyBtn.BackgroundColor3 = COLORS.text_dim
+			else
+				statusLabel.Text = ""
+				buyBtn.Text = "Buy (R$)"
+				buyBtn.BackgroundColor3 = COLORS.accent_green
+			end
+		end
+	end
+
+	-- Update ad cooldown
+	if robuxShopElements.adCooldownLabel then
+		if monetizationState.adCooldownRemaining > 0 then
+			local mins = math.ceil(monetizationState.adCooldownRemaining / 60)
+			robuxShopElements.adCooldownLabel.Text = "Available in " .. mins .. " min"
+		else
+			robuxShopElements.adCooldownLabel.Text = "Ready!"
+			robuxShopElements.adCooldownLabel.TextColor3 = COLORS.accent_green
+		end
+	end
+end
+
+------------------------------------------------------------------------
 -- UIController.init
 ------------------------------------------------------------------------
 
@@ -1625,6 +2099,7 @@ function UIController.init()
 	createBrandPanel(screenGui)
 	createEventPanel(screenGui)
 	createProcessingPanel(screenGui)
+	createRobuxShopPanel(screenGui)
 	createTutorialDialog(screenGui)
 	createNotificationContainer(screenGui)
 
@@ -1689,6 +2164,8 @@ function UIController.showPanel(panelName)
 			targetSize = UDim2.new(0, 400, 0.75, 0)
 		elseif panelName == "Processing" then
 			targetSize = UDim2.new(0, 420, 0.8, 0)
+		elseif panelName == "RobuxShop" then
+			targetSize = UDim2.new(0, 400, 0.85, 0)
 		end
 		if targetSize then
 			tweenProperty(panel, { Size = targetSize, BackgroundTransparency = 0 }, 0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)

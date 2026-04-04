@@ -556,6 +556,84 @@ GameConfig.SALARY_INTERVAL = 60
 -- Tutorial first plant grow time override
 GameConfig.TUTORIAL_GROW_TIME = 10
 
+------------------------------------------------------------------------
+-- Monetization: Game Passes
+------------------------------------------------------------------------
+-- Replace 0 with actual Game Pass IDs from Roblox Creator Dashboard
+GameConfig.GamePasses = {
+	premiumPlanter = {
+		id = 0, -- TODO: Replace with real Game Pass ID
+		name = "Premium Planter",
+		description = "Plants grow 50% faster!",
+		growSpeedMultiplier = 1.5,
+	},
+	autoHarvest = {
+		id = 0, -- TODO: Replace with real Game Pass ID
+		name = "Auto Harvest",
+		description = "Automatically harvest plants when ready (full quality).",
+	},
+	vipArea = {
+		id = 0, -- TODO: Replace with real Game Pass ID
+		name = "VIP Area Access",
+		description = "Unlock the exclusive VIP garden with rare planters.",
+	},
+}
+
+------------------------------------------------------------------------
+-- Monetization: Developer Products (repeatable purchases)
+------------------------------------------------------------------------
+-- Replace 0 with actual Developer Product IDs from Roblox Creator Dashboard
+GameConfig.DevProducts = {
+	coinPack_small = {
+		id = 0, -- TODO: Replace with real Developer Product ID
+		name = "Coin Pack (Small)",
+		description = "+500 coins",
+		coins = 500,
+	},
+	coinPack_medium = {
+		id = 0, -- TODO: Replace with real Developer Product ID
+		name = "Coin Pack (Medium)",
+		description = "+2,500 coins",
+		coins = 2500,
+	},
+	coinPack_large = {
+		id = 0, -- TODO: Replace with real Developer Product ID
+		name = "Coin Pack (Large)",
+		description = "+10,000 coins",
+		coins = 10000,
+	},
+	seedPack = {
+		id = 0, -- TODO: Replace with real Developer Product ID
+		name = "Rare Seed Pack",
+		description = "Receive 3 random rare seeds.",
+		seedCount = 3,
+		possibleSeeds = { "thunder_root", "neon_bloom", "crystal_sage", "rainbow_herb", "shadow_fern" },
+	},
+	booster_2x = {
+		id = 0, -- TODO: Replace with real Developer Product ID
+		name = "2x Earnings Booster",
+		description = "Double all earnings for 30 minutes!",
+		multiplier = 2.0,
+		duration = 1800, -- 30 minutes in seconds
+	},
+}
+
+------------------------------------------------------------------------
+-- Monetization: Premium Payouts
+------------------------------------------------------------------------
+GameConfig.Premium = {
+	earningsBonus = 0.20, -- 20% bonus on all earnings
+	payoutInterval = 300, -- check every 5 minutes for Premium Payouts engagement
+}
+
+------------------------------------------------------------------------
+-- Monetization: Ads (Roblox AdService)
+------------------------------------------------------------------------
+GameConfig.Ads = {
+	rewardPerWatch = 100, -- coins rewarded per ad view
+	cooldown = 1800, -- 30 minutes between ad watches (seconds)
+}
+
 -- Helper functions
 
 function GameConfig.getQualityMultiplier(rank: string): number
@@ -712,6 +790,24 @@ function GameConfig.getUnlockedSeeds(shopLevel: number)
 		end
 	end
 	return unlocked
+end
+
+function GameConfig.getGamePassByProductId(passId: number)
+	for key, pass in pairs(GameConfig.GamePasses) do
+		if pass.id == passId then
+			return key, pass
+		end
+	end
+	return nil, nil
+end
+
+function GameConfig.getDevProductByProductId(productId: number)
+	for key, product in pairs(GameConfig.DevProducts) do
+		if product.id == productId then
+			return key, product
+		end
+	end
+	return nil, nil
 end
 
 return GameConfig

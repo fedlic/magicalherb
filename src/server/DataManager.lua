@@ -44,6 +44,12 @@ local DEFAULT_DATA = {
 	lastLoginAt = 0,
 	processingSlots = {},
 	pendingMoney = 0,
+	-- Monetization
+	processedReceipts = {}, -- list of processed receipt IDs (anti-dupe)
+	ownedGamePasses = {}, -- { premiumPlanter = true, autoHarvest = true, ... }
+	boosterEndTime = 0, -- os.time() when 2x booster expires
+	isPremium = false, -- cached Roblox Premium status
+	lastAdWatch = 0, -- os.time() of last ad view
 }
 
 local function deepCopy(original)

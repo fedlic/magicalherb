@@ -80,6 +80,14 @@ function EconomyManager.addPendingMoney(player: Player, amount: number)
 	end
 	local data = DataManager.getPlayerData(player)
 	if data then
+		-- Apply monetization earnings multiplier (Premium + Booster)
+		local ServerScriptService = game:GetService("ServerScriptService")
+		local Server = ServerScriptService:FindFirstChild("Server")
+		if Server then
+			local MonetizationManager = require(Server:WaitForChild("MonetizationManager"))
+			local multiplier = MonetizationManager.getEarningsMultiplier(player)
+			amount = math.floor(amount * multiplier)
+		end
 		data.pendingMoney = (data.pendingMoney or 0) + amount
 	end
 end

@@ -28,6 +28,7 @@ local BrandManager = require(Server:WaitForChild("BrandManager"))
 local EventManager = require(Server:WaitForChild("EventManager"))
 local TutorialManager = require(Server:WaitForChild("TutorialManager"))
 local StaffManager = require(Server:WaitForChild("StaffManager"))
+local MonetizationManager = require(Server:WaitForChild("MonetizationManager"))
 
 print("[MagicalHerb] Server starting...")
 
@@ -41,6 +42,7 @@ InventoryManager.init(DataManager, RemoteHelper)
 PlantManager.init(DataManager, EconomyManager, InventoryManager, RemoteHelper)
 ShopManager.init(DataManager, EconomyManager, InventoryManager, RemoteHelper)
 NPCManager.init(DataManager, ShopManager, RemoteHelper)
+MonetizationManager.init(DataManager, EconomyManager, InventoryManager, RemoteHelper)
 -- UpgradeManager, ProcessingManager, BrandManager, EventManager, TutorialManager, StaffManager
 -- resolve their own dependencies via require()
 
@@ -67,6 +69,17 @@ Players.PlayerAdded:Connect(function(player)
 
 	-- Update brand score on join
 	BrandManager.updateBrandScore(player)
+
+	-- Check monetization: game passes, premium status
+	MonetizationManager.checkGamePasses(player)
+	MonetizationManager.checkPremiumStatus(player)
+
+	-- Listen for Premium membership changes mid-session
+	player.Changed:Connect(function(prop)
+		if prop == "MembershipType" then
+			MonetizationManager.checkPremiumStatus(player)
+		end
+	end)
 end)
 
 -- Player leave handler
@@ -230,6 +243,26 @@ RemoteHelper.onEvent("TutorialAdvance", function(player)
 	TutorialManager.advanceStep(player)
 end)
 
+-- Monetization: prompt game pass purchase
+RemoteHelper.onEvent("PromptGamePass", function(player, passKey)
+	MonetizationManager.promptGamePass(player, passKey)
+end)
+
+-- Monetization: prompt developer product purchase
+RemoteHelper.onEvent("PromptProduct", function(player, productKey)
+	MonetizationManager.promptProduct(player, productKey)
+end)
+
+-- Monetization: request ad watch
+RemoteHelper.onEvent("RequestAdWatch", function(player)
+	MonetizationManager.requestAdWatch(player)
+end)
+
+-- Monetization: ad watch completed (client confirms)
+RemoteHelper.onEvent("AdRewardGranted", function(player)
+	MonetizationManager.grantAdReward(player)
+end)
+
 -- Remote Function Handlers
 RemoteHelper.onInvoke("GetPlayerData", function(player)
 	return DataManager.getPlayerData(player)
@@ -262,6 +295,7 @@ local NPC_UPDATE_INTERVAL = 0.5
 local STAFF_UPDATE_INTERVAL = 1
 local PROCESSING_UPDATE_INTERVAL = 1
 local EVENT_UPDATE_INTERVAL = 1
+local MONETIZATION_UPDATE_INTERVAL = 5
 local SALARY_TIMER = 0
 
 local plantTimer = 0
@@ -269,6 +303,7 @@ local npcTimer = 0
 local staffTimer = 0
 local processingTimer = 0
 local eventTimer = 0
+local monetizationTimer = 0
 
 RunService.Heartbeat:Connect(function(dt)
 	-- Plant growth updates
@@ -304,6 +339,16 @@ RunService.Heartbeat:Connect(function(dt)
 	if eventTimer >= EVENT_UPDATE_INTERVAL then
 		EventManager.updateEvents(eventTimer)
 		eventTimer = 0
+	end
+
+	-- Monetization updates (booster expiry, auto-harvest)
+	monetizationTimer = monetizationTimer + dt
+	if monetizationTimer >= MONETIZATION_UPDATE_INTERVAL then
+		for _, player in ipairs(Players:GetPlayers()) do
+			MonetizationManager.updateMonetization(player)
+			MonetizationManager.processAutoHarvest(player, PlantManager)
+		end
+		monetizationTimer = 0
 	end
 
 	-- Salary deduction (every 60s)
