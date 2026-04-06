@@ -80,22 +80,43 @@ local functions = {}
 
 function RemoteHelper.init()
 	if isServer then
-		-- Server: create all remotes
-		remotesFolder = Instance.new("Folder")
-		remotesFolder.Name = "Remotes"
-		remotesFolder.Parent = ReplicatedStorage
+		-- Server: reuse existing remotes when scripts hot-reload in Studio.
+		remotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
+		if remotesFolder and not remotesFolder:IsA("Folder") then
+			remotesFolder:Destroy()
+			remotesFolder = nil
+		end
+		if not remotesFolder then
+			remotesFolder = Instance.new("Folder")
+			remotesFolder.Name = "Remotes"
+			remotesFolder.Parent = ReplicatedStorage
+		end
 
 		for _, name in ipairs(REMOTE_EVENTS) do
-			local remote = Instance.new("RemoteEvent")
-			remote.Name = name
-			remote.Parent = remotesFolder
+			local remote = remotesFolder:FindFirstChild(name)
+			if remote and not remote:IsA("RemoteEvent") then
+				remote:Destroy()
+				remote = nil
+			end
+			if not remote then
+				remote = Instance.new("RemoteEvent")
+				remote.Name = name
+				remote.Parent = remotesFolder
+			end
 			remotes[name] = remote
 		end
 
 		for _, name in ipairs(REMOTE_FUNCTIONS) do
-			local func = Instance.new("RemoteFunction")
-			func.Name = name
-			func.Parent = remotesFolder
+			local func = remotesFolder:FindFirstChild(name)
+			if func and not func:IsA("RemoteFunction") then
+				func:Destroy()
+				func = nil
+			end
+			if not func then
+				func = Instance.new("RemoteFunction")
+				func.Name = name
+				func.Parent = remotesFolder
+			end
 			functions[name] = func
 		end
 	else
